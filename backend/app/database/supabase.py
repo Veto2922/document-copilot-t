@@ -36,8 +36,8 @@ async def get_service_role_client() -> AsyncClient:
 
     if _service_role_client is None:
         _service_role_client = await acreate_client(
-            settings.supabase_url,
-            settings.supabase_service_role_key,
+            settings.SUPABASE_URL,
+            settings.SUPABASE_SERVICE_ROLE_KEY,
             options=_server_client_options(),
         )
 
