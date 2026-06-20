@@ -17,15 +17,22 @@ class User(Base):
     Represents an authenticated user in the system.
     Renamed from 'profiles' to 'users'. Keyed by the Supabase auth.users.id.
     """
+
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
+
+    display_name: Mapped[str | None] = mapped_column(String(255))
+
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     # Relationships
