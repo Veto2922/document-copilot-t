@@ -10,47 +10,13 @@ Startup sequence
    before connectivity is confirmed.
 """
 
-from contextlib import asynccontextmanager
-from collections.abc import AsyncGenerator
-
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
 from app.config import settings
-from app.database import engine
 
 logger = structlog.get_logger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Lifespan: startup / shutdown hooks
-# ---------------------------------------------------------------------------
-@asynccontextmanager
-async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    Manage application startup and shutdown.
-
-    On startup:
-    - Pings the Postgres database to surface config / connectivity errors
-      early, before the first request arrives.
-
-    On shutdown:
-    - Disposes the SQLAlchemy connection pool cleanly.
-    """
-    # --- Startup ---
-    logger.info("startup.begin", supabase_url=settings.SUPABASE_URL)
-
-    async with engine.connect() as conn:
-        await conn.execute(text("SELECT 1"))
-    logger.info("startup.db_ok")
-
-    yield  # application runs here
-
-    # --- Shutdown ---
-    await engine.dispose()
-    logger.info("shutdown.complete")
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +26,6 @@ app = FastAPI(
     title="Document Copilot Backend",
     description="Backend API for the Document Copilot research assistant.",
     version="0.1.0",
-    lifespan=lifespan,
 )
 
 # Configure CORS using origins validated by settings
@@ -73,9 +38,26 @@ app.add_middleware(
 )
 
 
+from fastapi import Depends
+from app.auth.dependencies import get_current_user, CurrentUser
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+@app.get("/api/test-auth", tags=["auth"])
+async def test_auth(user: CurrentUser = Depends(get_current_user)) -> dict[str, str]:
+    """
+    Test endpoint to verify that a client's Supabase JWT token is parsed
+    and verified correctly by the backend auth dependency.
+    """
+    return {
+        "status": "authenticated",
+        "user_id": str(user.id),
+        "email": user.email,
+    }
+
+
 @app.get("/health", tags=["ops"])
 async def health_check() -> dict[str, str]:
     """
