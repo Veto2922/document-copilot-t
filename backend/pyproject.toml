@@ -32,6 +32,7 @@ packages = ["app"]
 
 [dependency-groups]
 dev = [
+    "docking",
     "ipykernel>=7.3.0",
     "pytest>=9.1.0",
     "ruff>=0.15.17",

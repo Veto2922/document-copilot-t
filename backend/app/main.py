@@ -9,14 +9,50 @@ Startup sequence
 3. Routers are registered after lifespan so the app never serves traffic
    before connectivity is confirmed.
 """
+import sys
+import asyncio
 
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+import contextlib
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
+from app.database.session import engine
+from app.api.chat import router as chat_router
 
 logger = structlog.get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles application startup and shutdown lifespan events.
+    Verifies database connection on startup before accepting requests.
+    """
+    logger.info("Initializing application lifespan...")
+    try:
+        # Run a simple query to verify connection
+        async with engine.begin() as conn:
+            logger.info("Verifying database connection...")
+            await conn.execute(text("SELECT 1"))
+        logger.info("Database connection verified successfully.")
+    except Exception as exc:
+        logger.critical("Database connection verification failed on startup!", error=str(exc))
+        raise exc
+    
+    yield
+    
+    logger.info("Disposing database connection pool...")
+    await engine.dispose()
+    logger.info("Application lifespan shutdown completed.")
 
 
 # ---------------------------------------------------------------------------
@@ -26,6 +62,7 @@ app = FastAPI(
     title="Document Copilot Backend",
     description="Backend API for the Document Copilot research assistant.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS using origins validated by settings
@@ -40,6 +77,9 @@ app.add_middleware(
 
 from fastapi import Depends
 from app.auth.dependencies import get_current_user, CurrentUser
+
+# Register Chat Router
+app.include_router(chat_router)
 
 
 # ---------------------------------------------------------------------------

@@ -25,6 +25,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/chat/:threadId"
+            element={
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Catch-all redirect to chat/dashboard */}
           <Route path="*" element={<Navigate to="/chat" replace />} />
